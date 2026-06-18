@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: thu-moi-tot-nghiep
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: invitation-data
+      mountPath: /var/data
+      sizeGB: 1
