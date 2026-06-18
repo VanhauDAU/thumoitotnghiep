@@ -117,6 +117,10 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.use("/uploads", express.static(uploadDir, { maxAge: "7d" }));
 
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 app.get("/api/config", async (_req, res, next) => {
   try {
     res.json(await readConfig());

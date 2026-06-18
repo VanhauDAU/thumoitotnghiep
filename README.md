@@ -31,21 +31,55 @@ Frontend chay o `http://localhost:5173`, backend chay o `http://localhost:4000`.
 
 ## Deploy Render
 
-Repo da co `render.yaml`. Render se:
+Repo da san sang deploy len Render bang `render.yaml`.
 
-- build bang `npm install && npm run build`
-- start bang `npm start`
-- mount disk vao `/var/data`
-- dat `UPLOAD_DIR=/var/data/uploads`
-- dat `DATA_DIR=/var/data`
+### Cach 1: Dung Blueprint
 
-Cach nay giup anh upload khong mat khi service restart. Neu khong dung Render Disk, file upload tren Render co the bi mat khi deploy/restart.
+1. Push code len GitHub.
+2. Vao Render Dashboard.
+3. Chon `New` -> `Blueprint`.
+4. Chon repo nay.
+5. Render se doc file `render.yaml` va tao web service.
+6. Nhap gia tri cho secret `ADMIN_TOKEN`.
+7. Deploy.
 
-Nen them bien moi truong:
+`render.yaml` dang cau hinh:
+
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Health check: `/api/health`
+- Disk mount path: `/var/data`
+- `DATA_DIR=/var/data`
+- `UPLOAD_DIR=/var/data/uploads`
+- `ADMIN_TOKEN` la secret, khong commit vao repo
+
+### Cach 2: Tao Web Service thu cong
+
+Neu khong dung Blueprint, tao `New` -> `Web Service` va nhap:
 
 ```bash
+Build Command: npm install && npm run build
+Start Command: npm start
+Health Check Path: /api/health
+```
+
+Them Environment Variables:
+
+```bash
+NODE_VERSION=20
+DATA_DIR=/var/data
+UPLOAD_DIR=/var/data/uploads
 ADMIN_TOKEN=mot-chuoi-bi-mat
 ```
+
+Them Persistent Disk:
+
+```bash
+Mount Path: /var/data
+Size: 1GB
+```
+
+Cach nay giup anh upload va file cau hinh khong mat khi service restart/deploy. Theo tai lieu Render, chi du lieu ghi trong disk mount path moi duoc giu lai; filesystem con lai la tam thoi: https://render.com/docs/disks
 
 Sau do vao `/admin`, nhap token nay vao o `Admin token` de upload anh va luu cau hinh.
 
