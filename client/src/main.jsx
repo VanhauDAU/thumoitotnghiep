@@ -11,6 +11,7 @@ import {
   Heart,
   ImagePlus,
   Link2,
+  Mail,
   MapPin,
   Medal,
   Plus,
@@ -205,9 +206,79 @@ function useGuestToken() {
   return { guest, checked };
 }
 
+// ── Envelope Screen ───────────────────────────────────────────────────────────
+
+function EnvelopeScreen({ config, guest, onOpen }) {
+  const [opening, setOpening] = useState(false);
+
+  const handleOpen = () => {
+    setOpening(true);
+    // Sau khi animation envelope xong (~900ms) thì chuyển sang thiệp
+    setTimeout(() => onOpen(), 900);
+  };
+
+  return (
+    <div className={`envelope-screen${opening ? " opening" : ""}`}>
+      {/* Nền rơi icon */}
+      <div className="env-bg-icons" aria-hidden="true">
+        {Array.from({ length: 18 }).map((_, i) => (
+          <span key={i} className={`env-bg-icon env-bg-icon-${i + 1}`}>
+            <GraduationCap size={i % 4 === 0 ? 28 : 18} />
+          </span>
+        ))}
+      </div>
+
+      {/* Phong bì */}
+      <div className="envelope-wrap">
+        <div className="envelope">
+          {/* Nắp phong bì */}
+          <div className="envelope-flap">
+            <div className="envelope-flap-inner" />
+          </div>
+          {/* Thân phong bì */}
+          <div className="envelope-body">
+            <div className="envelope-seal">
+              <GraduationCap size={26} />
+            </div>
+          </div>
+          {/* Thẻ nhỏ bên trong ló ra khi mở */}
+          <div className="envelope-card-peek">
+            <Sparkles size={14} />
+            <span>Thư mời tốt nghiệp</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Text phía trên */}
+      <div className="env-header">
+        <p className="eyebrow" style={{ color: "rgb(255 246 228 / 80%)" }}>Bạn có một thư mời</p>
+        <h1 className="env-name">{config.graduateName || "Lễ Tốt Nghiệp"}</h1>
+        {guest && (
+          <p className="env-guest">
+            Kính gửi <span>{guest.relation}</span> <strong>{guest.name}</strong>
+          </p>
+        )}
+      </div>
+
+      {/* Nút mở */}
+      <button
+        className="open-envelope-btn"
+        onClick={handleOpen}
+        disabled={opening}
+        aria-label="Mở thiệp mời"
+      >
+        <Mail size={20} />
+        {opening ? "Đang mở..." : "Mở thiệp"}
+      </button>
+
+      <p className="env-hint">Nhấn để xem thư mời của bạn</p>
+    </div>
+  );
+}
+
 // ── Invitation ────────────────────────────────────────────────────────────────
 
-function Invitation({ config }) {
+function Invitation({ config, isOpened }) {
   const countdown = useCountdown(config);
   const { guest, checked } = useGuestToken();
 
@@ -220,7 +291,7 @@ function Invitation({ config }) {
   if (!checked) return null;
 
   return (
-    <main className="invitation-shell">
+    <main className={`invitation-shell${isOpened ? " card-revealed" : ""}`}>
       <section className="hero">
         <FallingGraduationIcons />
         <PhotoCarousel photos={photos} graduateName={config.graduateName} />
@@ -932,12 +1003,24 @@ function MemoryEditor({ items, onChange }) {
 
 function App() {
   const { config, setConfig, loading } = useConfig();
+  const { guest, checked: guestChecked } = useGuestToken();
   const isAdmin = window.location.pathname.startsWith("/admin");
+  const [isOpened, setIsOpened] = useState(false);
 
   const page = useMemo(() => {
-    if (loading) return <div className="loading">Đang tải...</div>;
-    return isAdmin ? <Admin config={config} setConfig={setConfig} /> : <Invitation config={config} />;
-  }, [config, isAdmin, loading, setConfig]);
+    if (loading || !guestChecked) return <div className="loading">Đang tải...</div>;
+    if (isAdmin) return <Admin config={config} setConfig={setConfig} />;
+    if (!isOpened) {
+      return (
+        <EnvelopeScreen
+          config={config}
+          guest={guest}
+          onOpen={() => setIsOpened(true)}
+        />
+      );
+    }
+    return <Invitation config={config} isOpened={isOpened} />;
+  }, [config, isAdmin, loading, setConfig, isOpened, guest, guestChecked]);
 
   return page;
 }
