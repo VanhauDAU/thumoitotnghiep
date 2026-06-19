@@ -27,6 +27,7 @@ const defaultConfig = {
   eventTitle: "Le tot nghiep",
   eventDate: "2026-07-20",
   eventTime: "08:30",
+  eventEndTime: "11:00",
   locationName: "Hoi truong A",
   locationAddress: "123 Duong Le Loi, Quan 1, TP. Ho Chi Minh",
   mapUrl: "",

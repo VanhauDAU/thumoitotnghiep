@@ -52,6 +52,7 @@ const emptyConfig = {
   eventTitle: "Lễ tốt nghiệp",
   eventDate: "",
   eventTime: "",
+  eventEndTime: "",
   locationName: "",
   locationAddress: "",
   mapUrl: "",
@@ -75,7 +76,8 @@ const fields = [
   ["school", "Trường"],
   ["eventTitle", "Tên sự kiện"],
   ["eventDate", "Ngày tổ chức", "date"],
-  ["eventTime", "Giờ", "time"],
+  ["eventTime", "Giờ bắt đầu", "time"],
+  ["eventEndTime", "Giờ kết thúc", "time"],
   ["locationName", "Địa điểm"],
   ["locationAddress", "Địa chỉ"],
   ["mapUrl", "Link Google Maps"],
@@ -134,6 +136,14 @@ function formatDate(value) {
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatEventTime(config) {
+  if (!config.eventTime && !config.eventEndTime) return "";
+  if (config.eventTime && config.eventEndTime) {
+    return `${config.eventTime} - ${config.eventEndTime}`;
+  }
+  return config.eventTime || config.eventEndTime;
 }
 
 function applyGreetingTemplate(template, guest) {
@@ -621,7 +631,7 @@ function Invitation({ config, isOpened }) {
 
       <section className="content-section event-grid" data-reveal>
         <Info icon={<CalendarDays />} label="Ngày" value={formatDate(config.eventDate)} />
-        <Info icon={<Clock />} label="Thời gian" value={config.eventTime} />
+        <Info icon={<Clock />} label="Thời gian" value={formatEventTime(config)} />
         <Info icon={<MapPin />} label={config.locationName} value={config.locationAddress} />
       </section>
 
