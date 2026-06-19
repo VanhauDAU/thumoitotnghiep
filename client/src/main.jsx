@@ -11,7 +11,6 @@ import {
   Heart,
   ImagePlus,
   Link2,
-  Mail,
   MapPin,
   Medal,
   Plus,
@@ -57,6 +56,8 @@ const emptyConfig = {
   locationAddress: "",
   mapUrl: "",
   hostName: "",
+  introGreetingImage: "",
+  introGreetingTemplate: "Chào {quan hệ} {người được mời}, mình gửi bạn một chiếc thiệp nhỏ cho ngày tốt nghiệp thật đặc biệt này.",
   greeting: "",
   message: "",
   privateMessage: "",
@@ -79,6 +80,7 @@ const fields = [
   ["locationAddress", "Địa chỉ"],
   ["mapUrl", "Link Google Maps"],
   ["hostName", "Người gửi lời mời"],
+  ["introGreetingTemplate", "Lời chào mở đầu"],
   ["greeting", "Lời mời ngắn"],
   ["message", "Lời nhắn chính"],
   ["privateMessage", "Lời nhắn gửi riêng"],
@@ -132,6 +134,47 @@ function formatDate(value) {
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${value}T00:00:00`));
+}
+
+function applyGreetingTemplate(template, guest) {
+  const relation = guest?.relation || "bạn";
+  const guestName = guest?.name || "thân mến";
+  const fallback = emptyConfig.introGreetingTemplate;
+  return (template || fallback)
+    .replaceAll("{quan hệ}", relation)
+    .replaceAll("{quan he}", relation)
+    .replaceAll("{người được mời}", guestName)
+    .replaceAll("{nguoi duoc moi}", guestName)
+    .replaceAll("{ten}", guestName)
+    .replaceAll("{tên}", guestName);
+}
+
+function useTypewriter(text, speed = 42) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setDisplayed("");
+    setDone(false);
+    if (!text) {
+      setDone(true);
+      return undefined;
+    }
+
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index += 1;
+      setDisplayed(text.slice(0, index));
+      if (index >= text.length) {
+        window.clearInterval(timer);
+        window.setTimeout(() => setDone(true), 360);
+      }
+    }, speed);
+
+    return () => window.clearInterval(timer);
+  }, [text, speed]);
+
+  return { displayed, done };
 }
 
 function useCountdown(config) {
@@ -262,6 +305,54 @@ function ConfettiBurst({ active }) {
   );
 }
 
+function Fireworks({ active }) {
+  const bursts = useMemo(() => {
+    if (!active) return [];
+    return Array.from({ length: 7 }, (_, burstIndex) => ({
+      id: burstIndex,
+      x: 14 + Math.random() * 72,
+      y: 12 + Math.random() * 46,
+      delay: burstIndex * 0.18,
+      particles: Array.from({ length: 18 }, (_, particleIndex) => {
+        const angle = (particleIndex / 18) * 360;
+        const rad = (angle * Math.PI) / 180;
+        const dist = 56 + Math.random() * 48;
+        return {
+          id: particleIndex,
+          tx: Math.cos(rad) * dist,
+          ty: Math.sin(rad) * dist,
+          color: CONFETTI_COLORS[(burstIndex + particleIndex) % CONFETTI_COLORS.length]
+        };
+      })
+    }));
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <div className="fireworks" aria-hidden="true">
+      {bursts.map((burst) => (
+        <div
+          key={burst.id}
+          className="firework-burst"
+          style={{ left: `${burst.x}%`, top: `${burst.y}%`, animationDelay: `${burst.delay}s` }}
+        >
+          {burst.particles.map((particle) => (
+            <span
+              key={particle.id}
+              style={{
+                "--tx": `${particle.tx}px`,
+                "--ty": `${particle.ty}px`,
+                "--color": particle.color
+              }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Scroll Reveal hook ────────────────────────────────────────────────────────
 
 function useScrollReveal() {
@@ -313,6 +404,11 @@ function EnvelopeScreen({ config, guest, onOpen }) {
   const [confetti, setConfetti] = useState(false);
   const envelopeRef = useRef(null);
   const wrapRef = useRef(null);
+  const greetingText = useMemo(
+    () => applyGreetingTemplate(config.introGreetingTemplate, guest),
+    [config.introGreetingTemplate, guest]
+  );
+  const { displayed, done: greetingDone } = useTypewriter(greetingText);
 
   // Sparkle positions (stable, generated once)
   const sparkles = useMemo(() =>
@@ -327,9 +423,10 @@ function EnvelopeScreen({ config, guest, onOpen }) {
   , []);
 
   const handleOpen = () => {
+    if (!greetingDone || opening) return;
     setOpening(true);
     setConfetti(true);
-    setTimeout(() => onOpen(), 920);
+    setTimeout(() => onOpen(), 2450);
   };
 
   // 3D mouse tilt
@@ -349,7 +446,7 @@ function EnvelopeScreen({ config, guest, onOpen }) {
   }, []);
 
   return (
-    <div className={`envelope-screen${opening ? " opening" : ""}`}>
+    <div className={`envelope-screen${opening ? " opening" : ""}${greetingDone ? " greeting-done" : ""}`}>
       {/* Nền rơi icon */}
       <div className="env-bg-icons" aria-hidden="true">
         {Array.from({ length: 18 }).map((_, i) => (
@@ -363,6 +460,20 @@ function EnvelopeScreen({ config, guest, onOpen }) {
       <div className="env-header">
         <p className="eyebrow" style={{ color: "rgb(255 246 228 / 80%)" }}>Bạn có một thư mời</p>
         <h1 className="env-name">{config.graduateName || "Lễ Tốt Nghiệp"}</h1>
+        <div className="intro-greeting-card">
+          {config.introGreetingImage && (
+            <img
+              className="intro-greeting-image"
+              src={resolveAsset(config.introGreetingImage)}
+              alt=""
+              aria-hidden="true"
+            />
+          )}
+          <p className="typewriter-greeting">
+            {displayed}
+            {!greetingDone && <span className="typewriter-caret" aria-hidden="true" />}
+          </p>
+        </div>
       </div>
 
       {/* Phong bì với 3D tilt */}
@@ -375,8 +486,23 @@ function EnvelopeScreen({ config, guest, onOpen }) {
         <div
           className="envelope"
           ref={envelopeRef}
+          role="button"
+          tabIndex={greetingDone ? 0 : -1}
+          aria-label="Click vào tấm thiệp để mở"
+          onClick={handleOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleOpen();
+            }
+          }}
           style={{ transition: opening ? "transform 0.9s ease" : "transform 0.12s ease" }}
         >
+          <div className="letter-card-reveal">
+            <p>Thư mời tốt nghiệp</p>
+            <strong>{config.graduateName || "Lễ Tốt Nghiệp"}</strong>
+            {guest && <span>Gửi {guest.relation} {guest.name}</span>}
+          </div>
           {/* Nắp phong bì */}
           <div className="envelope-flap">
             <div className="envelope-flap-inner" />
@@ -410,31 +536,13 @@ function EnvelopeScreen({ config, guest, onOpen }) {
         </div>
         {/* Confetti nổ từ giữa phong bì */}
         <ConfettiBurst active={confetti} />
+        <div className="flying-paper-plane" aria-hidden="true" />
       </div>
+      <Fireworks active={confetti} />
 
-      {/* Tên người được mời – nổi bật bên dưới phong bì, chỉ hiện khi có token */}
-      {guest && (
-        <div className="env-to-card">
-          <span className="env-to-label">THÂN MỜI</span>
-          <div className="env-to-name">
-            <span className="env-to-relation">{guest.relation}</span>
-            <strong className="env-to-fullname">{guest.name}</strong>
-          </div>
-        </div>
-      )}
-
-      {/* Nút mở */}
-      <button
-        className="open-envelope-btn"
-        onClick={handleOpen}
-        disabled={opening}
-        aria-label="Mở thiệp mời"
-      >
-        <Mail size={20} />
-        {opening ? "Đang mở..." : "Mở thiệp"}
-      </button>
-
-      <p className="env-hint">Nhấn để xem thư mời của bạn</p>
+      <p className="env-hint">
+        {greetingDone ? "Click vào tấm thiệp để mở" : "Lời chào đang được gửi đến bạn..."}
+      </p>
     </div>
   );
 }
@@ -734,6 +842,8 @@ function Admin({ config, setConfig }) {
       if (target === "heroImages") {
         updateField("heroImages", [...new Set([...(config.heroImages || []), ...urls])]);
         if (!config.heroImage && urls[0]) updateField("heroImage", urls[0]);
+      } else if (target === "introGreetingImage") {
+        updateField("introGreetingImage", urls[0] || "");
       } else {
         updateField("gallery", [...(config.gallery || []), ...urls]);
       }
@@ -766,7 +876,7 @@ function Admin({ config, setConfig }) {
     );
   };
 
-  const longTextFields = ["message", "greeting", "description", "privateMessage"];
+  const longTextFields = ["message", "greeting", "description", "privateMessage", "introGreetingTemplate"];
   const heroImages = config.heroImages || [];
 
   const save = async () => {
@@ -867,6 +977,36 @@ function Admin({ config, setConfig }) {
                   </button>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="admin-panel intro-gif-panel">
+            <PanelTitle icon={<Sparkles size={20} />} title="Ảnh/GIF lời chào mở đầu" />
+            <div className="intro-gif-editor">
+              {config.introGreetingImage ? (
+                <div className="intro-gif-preview">
+                  <img src={resolveAsset(config.introGreetingImage)} alt="Ảnh lời chào mở đầu" />
+                  <button
+                    type="button"
+                    className="delete-image-button"
+                    onClick={() => updateField("introGreetingImage", "")}
+                    title="Xóa ảnh/GIF lời chào"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="intro-gif-empty">Chưa có ảnh/GIF lời chào</div>
+              )}
+              <label className="inline-upload">
+                <ImagePlus size={18} />
+                {config.introGreetingImage ? "Thay ảnh/GIF" : "Thêm ảnh/GIF"}
+                <input
+                  type="file"
+                  accept="image/gif,image/*"
+                  onChange={(e) => uploadImages(e.target.files, "introGreetingImage")}
+                />
+              </label>
             </div>
           </section>
 

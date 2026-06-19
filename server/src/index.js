@@ -31,6 +31,9 @@ const defaultConfig = {
   locationAddress: "123 Duong Le Loi, Quan 1, TP. Ho Chi Minh",
   mapUrl: "",
   hostName: "Gia dinh Nguyen",
+  introGreetingImage: "",
+  introGreetingTemplate:
+    "Chao {quan he} {nguoi duoc moi}, minh gui ban mot chiec thiep nho cho ngay tot nghiep that dac biet nay.",
   greeting: "Tran trong kinh moi ban den chung vui trong ngay le tot nghiep.",
   message:
     "Su hien dien cua ban la niem vui va niem vinh hanh lon voi minh va gia dinh.",
