@@ -60,6 +60,7 @@ const emptyConfig = {
   hostName: "",
   musicUrl: "",
   musicTitle: "",
+  musicVolume: 0.6,
   introGreetingImage: "",
   introGreetingTemplate: "Chào {quan hệ} {người được mời}, mình gửi bạn một chiếc thiệp nhỏ cho ngày tốt nghiệp thật đặc biệt này.",
   greeting: "",
@@ -368,6 +369,120 @@ function Fireworks({ active }) {
 
 // ── Scroll Reveal hook ────────────────────────────────────────────────────────
 
+// ── Sound Effect: Mở thiệp ────────────────────────────────────────────────────────
+
+function playOpenSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    // 1️⃣ Tiếng xào xạc giấy (white noise burst)
+    const rustleLen = ctx.sampleRate * 0.38;
+    const rustleBuffer = ctx.createBuffer(1, rustleLen, ctx.sampleRate);
+    const rustleData = rustleBuffer.getChannelData(0);
+    for (let i = 0; i < rustleLen; i++) {
+      // Envelope: tăng nhanh, giảm dần
+      const env = Math.pow(1 - i / rustleLen, 1.8);
+      rustleData[i] = (Math.random() * 2 - 1) * env;
+    }
+    const rustleSource = ctx.createBufferSource();
+    rustleSource.buffer = rustleBuffer;
+
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = "bandpass";
+    bandpass.frequency.value = 1800;
+    bandpass.Q.value = 0.6;
+
+    const rustleGain = ctx.createGain();
+    rustleGain.gain.setValueAtTime(0.45, now);
+    rustleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+    rustleSource.connect(bandpass);
+    bandpass.connect(rustleGain);
+    rustleGain.connect(ctx.destination);
+    rustleSource.start(now);
+    rustleSource.stop(now + 0.4);
+
+    // 2️⃣ Tiếng "whoosh" nhẹ (swept noise)
+    const whooshLen = ctx.sampleRate * 0.55;
+    const whooshBuffer = ctx.createBuffer(1, whooshLen, ctx.sampleRate);
+    const whooshData = whooshBuffer.getChannelData(0);
+    for (let i = 0; i < whooshLen; i++) {
+      const t = i / whooshLen;
+      const env = t < 0.3 ? t / 0.3 : Math.pow(1 - (t - 0.3) / 0.7, 2);
+      whooshData[i] = (Math.random() * 2 - 1) * env * 0.55;
+    }
+    const whooshSource = ctx.createBufferSource();
+    whooshSource.buffer = whooshBuffer;
+
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.setValueAtTime(400, now + 0.05);
+    highpass.frequency.linearRampToValueAtTime(3200, now + 0.6);
+
+    const whooshGain = ctx.createGain();
+    whooshGain.gain.setValueAtTime(0.0, now + 0.05);
+    whooshGain.gain.linearRampToValueAtTime(0.35, now + 0.22);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+    whooshSource.connect(highpass);
+    highpass.connect(whooshGain);
+    whooshGain.connect(ctx.destination);
+    whooshSource.start(now + 0.05);
+    whooshSource.stop(now + 0.65);
+
+    // 3️⃣ Tiếng "ding" mừng (sine bell)
+    const bell = ctx.createOscillator();
+    bell.type = "sine";
+    bell.frequency.setValueAtTime(1047, now + 0.28); // C6
+    bell.frequency.exponentialRampToValueAtTime(880, now + 1.0);  // A5
+
+    const bell2 = ctx.createOscillator();
+    bell2.type = "sine";
+    bell2.frequency.value = 1319; // E6 – harmony
+
+    const bellGain = ctx.createGain();
+    bellGain.gain.setValueAtTime(0, now + 0.28);
+    bellGain.gain.linearRampToValueAtTime(0.28, now + 0.31);
+    bellGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+
+    const bell2Gain = ctx.createGain();
+    bell2Gain.gain.setValueAtTime(0, now + 0.32);
+    bell2Gain.gain.linearRampToValueAtTime(0.14, now + 0.35);
+    bell2Gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+
+    bell.connect(bellGain);
+    bell2.connect(bell2Gain);
+    bellGain.connect(ctx.destination);
+    bell2Gain.connect(ctx.destination);
+
+    bell.start(now + 0.28);
+    bell.stop(now + 1.2);
+    bell2.start(now + 0.32);
+    bell2.stop(now + 1.2);
+
+    // 4️⃣ Nốt thứ ba – G5 – chạm đầy đủ âm
+    const bell3 = ctx.createOscillator();
+    bell3.type = "sine";
+    bell3.frequency.value = 784; // G5
+    const bell3Gain = ctx.createGain();
+    bell3Gain.gain.setValueAtTime(0, now + 0.38);
+    bell3Gain.gain.linearRampToValueAtTime(0.1, now + 0.42);
+    bell3Gain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+    bell3.connect(bell3Gain);
+    bell3Gain.connect(ctx.destination);
+    bell3.start(now + 0.38);
+    bell3.stop(now + 1.2);
+
+    // Tự đóng context sau khi xong
+    setTimeout(() => ctx.close().catch(() => {}), 1600);
+  } catch (_e) {
+    // Ignore – Web Audio không khả dụng
+  }
+}
+
 function useScrollReveal() {
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -531,6 +646,7 @@ function EnvelopeScreen({ config, guest, onOpen }) {
 
   const handleOpen = () => {
     if (!greetingDone || opening) return;
+    playOpenSound();
     setOpening(true);
     setConfetti(true);
     setTimeout(() => onOpen(), 2450);
@@ -1188,6 +1304,31 @@ function Admin({ config, setConfig }) {
                   )}
                 </select>
               </label>
+
+              {/* Thanh kéo âm lượng */}
+              <label className="music-volume-field">
+                <span className="music-volume-label">
+                  🔊 Âm lượng: <strong>{Math.round((config.musicVolume ?? 0.6) * 100)}%</strong>
+                </span>
+                <div className="music-volume-row">
+                  <span className="vol-icon">🔇</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={config.musicVolume ?? 0.6}
+                    onChange={(e) => {
+                      const vol = parseFloat(e.target.value);
+                      updateField("musicVolume", vol);
+                      if (audioRef?.current) audioRef.current.volume = vol;
+                    }}
+                    className="volume-slider"
+                  />
+                  <span className="vol-icon">🔊</span>
+                </div>
+              </label>
+
               <label className="inline-upload">
                 <Music size={18} />
                 Thêm nhạc
@@ -1513,10 +1654,10 @@ function App() {
   const playMusic = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !config.musicUrl) return;
-    audio.volume = 0.55;
+    audio.volume = typeof config.musicVolume === "number" ? config.musicVolume : 0.6;
     audio.muted = false;
     audio.play().catch(() => {});
-  }, [config.musicUrl]);
+  }, [config.musicUrl, config.musicVolume]);
 
   const handleInvitationOpen = useCallback(() => {
     setIsOpened(true);
